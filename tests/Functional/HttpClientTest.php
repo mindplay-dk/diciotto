@@ -5,6 +5,10 @@ namespace Tests\Diciotto\Functional;
 use Diciotto\HttpClient;
 use Diciotto\JsonRequest;
 use Diciotto\Request;
+use function http_build_query;
+use function json_decode;
+use function json_encode;
+use Nyholm\Psr7\Stream;
 
 class HttpClientTest extends \PHPUnit\Framework\TestCase
 {
@@ -19,6 +23,30 @@ class HttpClientTest extends \PHPUnit\Framework\TestCase
         $this->assertStringStartsWith('User-agent:', (string) $response->getBody());
         $this->assertContains($response->getProtocolVersion(), ['1.1', '2']);
         $this->assertEquals(['text/plain; charset=utf-8'], $response->getHeader('content-type'));
+    }
+
+    public function testPost(): void
+    {
+        $client = new HttpClient();
+
+        $request = new Request('https://httpbin.org/anything', 'POST');
+
+        $expected_data = [
+            "foo" => "bar"
+        ];
+
+        $request = $request
+            ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
+            ->withBody(Stream::create(http_build_query($expected_data)));
+
+        $response = $client->sendRequest($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $response_body = json_decode($response->getBody()->getContents(), true);
+
+        $this->assertSame($expected_data, $response_body['form']);
+        $this->assertSame('POST', $response_body['method']);
     }
 
     public function testCookie(): void
